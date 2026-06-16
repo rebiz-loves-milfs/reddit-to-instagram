@@ -1,0 +1,12 @@
+wget
+instagrapi
+prawcore
+moviepy
+nekobin
+flask
+yt-dlp 
+praw 
+pytz
+pyotp
+pillow
+ffmpeg

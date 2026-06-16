@@ -1,0 +1,8 @@
+name: instaddit
+image: okteto/instaddit:latest
+command: ["python", "main.py"]
+workdir: /usr/src/app
+forward:
+  - 8080:8080
+persistentVolume:
+  enabled: false
