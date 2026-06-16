@@ -1,97 +1,96 @@
-from instagrapi import Client
-import praw
-from pathlib import Path
-from prawcore.exceptions import Forbidden
 import datetime
-import threading
-import requests
-import yt_dlp
-import asyncio
+import logging
+import os
 import random
 import time
-import json
-import wget
-import os
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
- 
-#Creating Clients
-cl = Client()
-inti = str(random.randint(0, 999999))
-hr = random.randint(4, 12)
-count = random.randint(0, 10)
-print("count is {}".format(count))
+from instagrapi import Client
+import praw
+from prawcore.exceptions import Forbidden
+import requests
+import wget
+import yt_dlp
 
+# Set up clean logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
 
+SUBREDDITS = [
+    "AnimalsBeingDerps", "Dogelore", "Indiandankmemes", "comedymemes", "wholesomememes", "funny",
+    "funnyvideos", "memes", "okbuddyretard", "youtubehaiku", "ComedyCemetery", "mealtimevideos",
+    "Whatcouldgowrong", "CatsMurderingToddlers", "dankvideos", "funniestvideos", "notimanderic",
+    "wellthatsucks", "thathappened", "atbge", "ProgrammerHumor", "terriblefacebookmemes",
+    "im14andthisisdeep", "IndianDankMemes"
+]
 
-    
+HASHTAGS = [
+    "#meme", "#memes", "#funny", "#dankmemes", "#memesdaily", "#funnymemes", "#lol", "#humor",
+    "#follow", "#dank", "#love", "#like", "#memepage", "#comedy", "#instagram", "#dankmeme",
+    "#lmao", "#dailymemes", "#fun", "#edgymemes", "#ol", "#offensivememes", "#memestagram",
+    "#funnymeme", "#bhfyp", "#instagood", "#memer", "#doge", "#dogememe", "#dogememes",
+    "#cheems", "#dogecoin", "#cheemsmeme", "#dogelore", "#doggo", "#doggomeme", "#cheemsmemes",
+    "#explore"
+]
 
-def download (url):
-   global int
-   ydl_opts_start = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', #This Method Need ffmpeg
-            'outtmpl': f'{inti}.%(ext)s',
-            'no_warnings': True,
-            'ignoreerrors': True,
-            'playlistend': 1,
-            'http_chunk_size': 20097152,
-            'writethumbnail': False
-   }
-   with yt_dlp.YoutubeDL(ydl_opts_start) as ydl:
-      ydl.download([url])
+STORY_SUBREDDITS = [
+    "funnyvideos", "tiktokcringe", "PlayItAgainSam", "dankvideos", "funniestvideos"
+]
 
+def download_video(url, output_name):
+    """Downloads a video using yt-dlp."""
+    logger.info(f"Downloading video from {url}...")
+    ydl_opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'outtmpl': f'{output_name}.%(ext)s',
+        'no_warnings': True,
+        'ignoreerrors': True,
+        'playlistend': 1,
+        'http_chunk_size': 20097152,
+        'writethumbnail': False
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
 
+def add_watermark(image_path, text="@whyknotmemes", font_path="font.ttf"):
+    """Adds a simple watermark to the image at (0, 0)."""
+    try:
+        with Image.open(image_path).convert('RGB') as img:
+            draw = ImageDraw.Draw(img)
+            try:
+                font = ImageFont.truetype(font_path, 25)
+            except IOError:
+                font = ImageFont.load_default()
+            draw.text((10, 10), text=text, font=font, fill=(255, 255, 255))
+            watermarked_path = "picture.jpg"
+            img.save(watermarked_path)
+            return watermarked_path
+    except Exception as e:
+        logger.error(f"Error watermarking image: {e}")
+        return None
 
-def Auto():
-  global count
-  while True:
+def run_bot_cycle():
+    """Runs a single iteration of the bot (fetch, process, upload, sleep)."""
+    # Pick a random subreddit
+    sub_name = random.choice(SUBREDDITS)
+    logger.info(f"Selected subreddit: r/{sub_name}")
 
-#English Subreddit
-    subreddit = [
-"AnimalsBeingDerps", "Dogelore","Indiandankmemes", "comedymemes", "wholesomememes", "funny",
-"funnyvideos", "memes", "okbuddyretard",  'youtubehaiku',  "ComedyCemetery",  "mealtimevideos",  "Whatcouldgowrong",  "CatsMurderingToddlers",  "dankvideos", 
-"funniestvideos", "notimanderic",  "wellthatsucks", "thathappened",  "atbge", "ProgrammerHumor",  "terriblefacebookmemes",  "im14andthisisdeep","IndianDankMemes"]
+    # Generate hashtags
+    selected_tags = random.sample(HASHTAGS, min(5, len(HASHTAGS)))
+    tags_str = " ".join(selected_tags)
 
+    # Load Instagram credentials
+    ig_user = os.environ.get("USERNAME")
+    ig_pass = os.environ.get("PASS")
+    if not ig_user or not ig_pass:
+        logger.error("Instagram credentials (USERNAME, PASS) are missing!")
+        return
 
-    test = ["funnyvideos", "funnyvideos"]
-
-#Hindi_Subreddit
-    
-    hindi_only = [
-   "Dogelore", "Dogelore", 
-   "bakchodi", "chodi", "Hindimemes", "Mandirgang", 
-   "Indiandankmemes", "dankinindia", "dankindianmemes",
-   "dankmemes", "indiameme", "funnyvideos", "cringe", "facepalm",
-    ]
-
-    
-
-#Random Tags
-    hashtags = [ 
-    "#meme", "#memes", "#funny", "#dankmemes",
-    "#memesdaily", "#funnymemes", "#lol", "#humor",
-    "#follow", "#dank", "#love", "#like", "#memepage",
-    "#comedy", "#instagram", "#dankmeme", "#lmao", "#dailymemes", "#fun",
-    "#edgymemes", "#ol", "#offensivememes", "#memestagram", "#funnymeme", "#bhfyp", "#instagood", "#memer", "#bhfyp",
-    "#doge", "#dogememe", "#doge", "#dogememes",
-    "#cheems", "#dogecoin", "#dankmemes", "#cheemsmeme",
-    "#funny", "#dogelore", "#funnymemes", "#doggo", "#doggomeme", "#cheemsmemes", "#explore"]
-    random.shuffle(hashtags)
-    random.shuffle(hashtags)
-    random.shuffle(hashtags)
-    hash1 = random.choice(hashtags)
-    hash2 = random.choice(hashtags)
-    hash3 = random.choice(hashtags)
-    hash4 = random.choice(hashtags)
-    hash5 = random.choice(hashtags)
-
-    user = os.environ.get("USERNAME")
-    password = os.environ.get("PASS")
-    random.shuffle(subreddit)    
-    random.shuffle(subreddit)
-    random.shuffle(subreddit)
-    random.shuffle(subreddit)
-    subreddit1 = random.choice(subreddit)      
-    print(f"choosing {subreddit1}")
+    # Initialize Reddit client
     reddit = praw.Reddit(
         client_id=os.environ.get("REDDIT_CLIENT_ID"),
         client_secret=os.environ.get("REDDIT_CLIENT_SECRET"),
@@ -99,179 +98,146 @@ def Auto():
         username=os.environ.get("REDDIT_USERNAME"),
         password=os.environ.get("REDDIT_PASSWORD"),
     )
-    subreddit = reddit.subreddit(subreddit1)
+
     try:
-      memes = subreddit.random() 
+        subreddit_obj = reddit.subreddit(sub_name)
+        memes = subreddit_obj.random()
+        if not memes or not hasattr(memes, "title") or not hasattr(memes, "url"):
+            logger.warning("Failed to fetch a random post (got None or missing properties).")
+            return
     except Forbidden:
-      Auto()
+        logger.warning(f"Access forbidden to r/{sub_name}")
+        return
+    except Exception as e:
+        logger.error(f"Error fetching from Reddit: {e}")
+        return
+
+    title = memes.title
+    url = memes.url
+    logger.info(f"Fetched post: '{title}' - URL: {url}")
+
+    # Validate post URL via redirect check
     try:
-     title1 = memes.title
-    except:
-     Auto()
-    url = (memes.url)
-    r = requests.get(url, headers={'User-Agent':'18277'})
-    video_url = r.url
-    print(url)   
-    pics = [".png", ".jpg", ".jpeg"]
-    videos = ["https://v.redd.it", "v.redd.it", "youtube", "youtu.be"]
-    data = f"""
-This post was scrapped from r/{subreddit1}
+        r = requests.get(url, headers={'User-Agent': '18277'}, timeout=15)
+        media_url = r.url
+    except Exception as e:
+        logger.error(f"Error checking URL {url}: {e}")
+        return
 
-Post Link: https://reddit.com{memes.permalink}
-Credits go to: {memes.author} for posting the post.
+    pics_extensions = (".png", ".jpg", ".jpeg")
+    videos_keywords = ("v.redd.it", "youtube.com", "youtu.be")
 
-The url of the post is {memes.url}.
-Title is {memes.title}.
-Post resent at {datetime.datetime.now()}.
-I do not own any content. 
-Please contact me if you want any content to get removed.
+    cl = Client()
+    temp_files = []
 
+    try:
+        is_pic = any(ext in media_url.lower() for ext in pics_extensions)
+        is_vid = any(vid in media_url.lower() for vid in videos_keywords)
 
-Mr. Meme"""
-
-    data = {
-    'api_dev_key': os.environ.get("PASTEBIN_API_KEY", ""),
-    'api_paste_code': data,
-    'api_option': 'paste',
-    'api_paste_expire_date': 'N'
-    }
-    #response = requests.post('https://pastebin.com/api/api_post.php', data=data)
-    #neko = (response.content).decode("utf-8")
-    if any(pic in url for pic in pics):
-         file = wget.download(url)
-         print('downloaded')
-         title = (f"{title1}\n{hash1} {hash2} {hash3} {hash4} {hash5}")
-         image = Image.open(file).convert('RGB')
-         color = (255, 255, 255)
-         draw = ImageDraw.Draw(image)
-         width, height = image.size
-         text = "@whyknotmemes"
-         font = ImageFont.truetype('font.ttf', 25)
-         draw.text((0,0), text=text, font=font, fill=color)  
-         time.sleep(20) 
-         cl.login(user, password)        
-         try:
-           image.save("picture.jpg")           
-           phot_path = "picture.jpg"
-           phot_path = Path(phot_path)        
-           media = cl.photo_upload(
-                    phot_path,
-                    (f"{title1}\n{hash1} {hash2} {hash3} {hash4} {hash5}"),
-           )
-           os.remove(phot_path)
-         except Exception as e:
-           Auto()
-           
-    elif any(video in url for video in videos):
-          print("video")
-          file = download(url=url)       
-         
-          try:       
-           time.sleep(20)          
-           cl.login(user, password)
-           print("Power nap OVER!")
-  
-           try:
-             media = cl.clip_upload(
-                          path = f"{inti}.mp4", 
-                        
-                          caption = (f"{title1}\n{hash1} {hash2} {hash3} {hash4} {hash5}"),
-             )
-             print("Uploaded as reel")
-             
-           except Exception as e:
-             print(e)
-
-
-             try:
-               media = cl.video_upload(
-                          path = f"{inti}.mp4", 
-                          
-                          caption = (f"{title1}\n{hash1} {hash2} {hash3} {hash4} {hash5}")
-               ) 
-               print("Uploaded as video")
-             except Exception as e:
-               try: 
-                media = cl.igtv_upload(
-                          path = f"{inti}.mp4", 
-                          
-                          title=title1,
-                          caption = (f"{title1}\n{hash1} {hash2} {hash3} {hash4} {hash5}")
-                ) 
-                print("Uploaded as igtv")
-               except Exception as e:
-                print(e)
-          except Exception as e:
-             print(e)  
-             Auto()
-          try:
-            os.remove(f"{inti}.mp4") 
+        if is_pic:
+            logger.info("Processing as image...")
+            downloaded_file = wget.download(media_url)
+            temp_files.append(downloaded_file)
             
-            print("uploaded")
-          except Exception as e:
-            print(e)
-            Auto()
-    else:
-      print(f"Unknown post {url}")
-      Auto()
-    
-    
-    
-    if count != 0:
-     print("uploading story too")
-     story_list = ["funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "funnyvideos", "tiktokcringe", "tiktokcringe", "tiktokcringe", "PlayItAgainSam"
-"dankvideos",
-"funniestvideos"]
-     story = random.choice(story_list)
-     subreddit = reddit.subreddit(story)
-     memes = subreddit.random() 
-     title = memes.title
-     url = (memes.url)
-     r = requests.get(url, headers={'User-Agent':'18277'})
-     video_url = r.url
-     maki = str(random.randint(0, 999999))
-     ydl_opts_start = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', #This Method Need ffmpeg
-            'outtmpl': f'{maki}.%(ext)s',
-            'no_warnings': True,
-            'ignoreerrors': True,
-            'playlistend': 1,
-            'http_chunk_size': 20097152,
-            'writethumbnail': False
-     }
-     with yt_dlp.YoutubeDL(ydl_opts_start) as ydl:
-      ydl.download([url])
-     
-     cl.video_upload_to_story(path = f"{maki}.mp4", caption = title)
-     print("new story")
-     os.remove(f"{maki}.mp4") 
-    else:
-     print(f"Number was {count}")
-     print("Skipping")
-     pass
+            watermarked_file = add_watermark(downloaded_file)
+            if not watermarked_file:
+                return
+            temp_files.append(watermarked_file)
 
+            logger.info("Logging into Instagram...")
+            cl.login(ig_user, ig_pass)
+            caption = f"{title}\n{tags_str}"
+            cl.photo_upload(Path(watermarked_file), caption)
+            logger.info("Successfully uploaded photo.")
+
+        elif is_vid:
+            logger.info("Processing as video...")
+            video_id = str(random.randint(0, 999999))
+            download_video(media_url, video_id)
+            video_path = f"{video_id}.mp4"
+            temp_files.append(video_path)
+
+            if not os.path.exists(video_path):
+                logger.warning("Video download failed / file not found.")
+                return
+
+            logger.info("Logging into Instagram...")
+            cl.login(ig_user, ig_pass)
+            caption = f"{title}\n{tags_str}"
+            
+            # Try upload strategies
+            uploaded = False
+            for upload_method, name in [
+                (lambda: cl.clip_upload(Path(video_path), caption), "Reel"),
+                (lambda: cl.video_upload(Path(video_path), caption), "Video"),
+                (lambda: cl.igtv_upload(Path(video_path), title=title, caption=caption), "IGTV")
+            ]:
+                try:
+                    logger.info(f"Attempting to upload as {name}...")
+                    upload_method()
+                    logger.info(f"Successfully uploaded as {name}.")
+                    uploaded = True
+                    break
+                except Exception as upload_err:
+                    logger.error(f"Upload as {name} failed: {upload_err}")
+            
+            if not uploaded:
+                logger.error("All video upload strategies failed.")
+
+        else:
+            logger.warning(f"Unknown/unsupported URL: {media_url}")
+            return
+
+        # Upload story if count is non-zero
+        story_count = random.randint(0, 10)
+        if story_count != 0:
+            logger.info("Uploading random story...")
+            story_sub = random.choice(STORY_SUBREDDITS)
+            try:
+                story_subreddit = reddit.subreddit(story_sub)
+                story_post = story_subreddit.random()
+                if story_post and hasattr(story_post, "url") and hasattr(story_post, "title"):
+                    story_id = str(random.randint(0, 999999))
+                    download_video(story_post.url, story_id)
+                    story_path = f"{story_id}.mp4"
+                    temp_files.append(story_path)
+                    
+                    if os.path.exists(story_path):
+                        cl.video_upload_to_story(Path(story_path), caption=story_post.title)
+                        logger.info("Successfully uploaded story.")
+            except Exception as story_err:
+                logger.error(f"Failed to fetch/upload story: {story_err}")
+
+    except Exception as e:
+        logger.error(f"Cycle execution error: {e}")
+    finally:
+        # Log out of Instagram safely
+        try:
+            cl.logout()
+            logger.info("Logged out of Instagram.")
+        except Exception:
+            pass
+
+        # Clean up temporary files
+        for f in temp_files:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+                    logger.info(f"Cleaned up temporary file: {f}")
+            except Exception as clean_err:
+                logger.error(f"Failed to remove file {f}: {clean_err}")
+
+def main():
+    logger.info("Starting instaddit bot...")
+    while True:
+        try:
+            run_bot_cycle()
+        except Exception as e:
+            logger.error(f"Unhandled exception in main loop: {e}")
         
-       
-    
-       
-           
-    
-    
-    
-      
-    
-    cl.logout()
-    print("Logged out!")
-    print(f"sleeping {hr} hours")
-    time.sleep(3600*hr)
-
-
+        sleep_hours = random.randint(4, 12)
+        logger.info(f"Sleeping for {sleep_hours} hours...")
+        time.sleep(3600 * sleep_hours)
 
 if __name__ == "__main__":
-   
-   Auto()
-
-else: 
-   print("file not runned")
-   os._exit(os.EX_OK) 
-   
+    main()
