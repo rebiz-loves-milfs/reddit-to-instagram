@@ -1,4 +1,4 @@
-# instaddit
+# reddit-to-instagram
 
 A Python bot that scrapes media from a rotating set of Reddit subreddits and
 auto-posts it to an Instagram account as photos, reels, videos, and stories. It
